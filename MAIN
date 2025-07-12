@@ -1,0 +1,132 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --------- STEP 1: Generate Non-linearly Separable Dataset ---------
+np.random.seed(0)
+
+# Class 0: Inner circle - Healthy
+r0 = 10 * np.sqrt(np.random.rand(50))
+t0 = 2 * np.pi * np.random.rand(50)
+x0 = np.array([r0 * np.cos(t0), r0 * np.sin(t0)]).T
+
+# Class 1: Outer ring - Diseased
+r1 = 20 * np.sqrt(np.random.rand(50)) + 10
+t1 = 2 * np.pi * np.random.rand(50)
+x1 = np.array([r1 * np.cos(t1), r1 * np.sin(t1)]).T
+
+# Combine dataset
+X_train = np.vstack((x0, x1))
+y_train = np.array([0] * 50 + [1] * 50)
+
+# --------- STEP 2: Visualize Original Dataset Only ---------
+plt.figure(figsize=(6, 6))
+plt.scatter(x0[:, 0], x0[:, 1], c='r', marker='x', label='Healthy (Class 0)')
+plt.scatter(x1[:, 0], x1[:, 1], c='b', marker='o', label='Diseased (Class 1)')
+plt.title("Medical Diagnosis: Symptom Pattern Separation")
+plt.xlabel("Symptom Feature 1")
+plt.ylabel("Symptom Feature 2")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# --------- STEP 3: Plotting Helper Function ---------
+def plot_data(X, y, pos_label="Diseased", neg_label="Healthy"):
+    plt.scatter(X[y == 1][:, 0], X[y == 1][:, 1], c='b', marker='o', label=pos_label)
+    plt.scatter(X[y == 0][:, 0], X[y == 0][:, 1], c='r', marker='x', label=neg_label)
+
+# --------- STEP 4: Feature Mapping (Polynomial degree 2) ---------
+def map_feature(X):
+    x1 = X[:, 0]
+    x2 = X[:, 1]
+    return np.c_[
+        np.ones(X.shape[0]),
+        x1, x2,
+        x1**2, x1*x2, x2**2
+    ]
+
+# --------- STEP 5: Sigmoid Function ---------
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+# --------- STEP 6: Cost Function ---------
+def compute_cost(X, y, w, b):
+    m = X.shape[0]
+    total_cost = 0
+    for i in range(m):
+        z = np.dot(w, X[i]) + b
+        f_wb = sigmoid(z)
+        total_cost += -y[i]*np.log(f_wb) - (1 - y[i])*np.log(1 - f_wb)
+    return total_cost / m
+
+# --------- STEP 7: Gradient Function ---------
+def compute_gradient(X, y, w, b):
+    m, n = X.shape
+    dj_dw = np.zeros(n)
+    dj_db = 0.
+    for i in range(m):
+        z = np.dot(X[i], w) + b
+        f_wb = sigmoid(z)
+        dj_db += (f_wb - y[i])
+        dj_dw += (f_wb - y[i]) * X[i]
+    return dj_db / m, dj_dw / m
+
+# --------- STEP 8: Gradient Descent ---------
+def gradient_descent(X, y, w_in, b_in, cost_function, gradient_function, alpha, num_iters):
+    J_history = []
+    w = w_in.copy()
+    b = b_in
+    for i in range(num_iters):
+        dj_db, dj_dw = gradient_function(X, y, w, b)
+        w -= alpha * dj_dw
+        b -= alpha * dj_db
+        if i % 1000 == 0 or i == num_iters - 1:
+            cost = cost_function(X, y, w, b)
+            J_history.append(cost)
+            print(f"Iteration {i}: Cost {cost:.4f}")
+    return w, b, J_history
+
+# --------- STEP 9: Prediction ---------
+def predict(X, w, b):
+    m = X.shape[0]
+    p = np.zeros(m)
+    for i in range(m):
+        z = np.dot(w, X[i]) + b
+        f_wb = sigmoid(z)
+        p[i] = 1 if f_wb >= 0.5 else 0
+    return p
+
+# --------- STEP 10: Plot Curved Decision Boundary ---------
+def plot_decision_boundary_poly(w, b):
+    u = np.linspace(-30, 30, 200)
+    v = np.linspace(-30, 30, 200)
+    z = np.zeros((len(u), len(v)))
+    for i in range(len(u)):
+        for j in range(len(v)):
+            features = map_feature(np.array([[u[i], v[j]]]))
+            z[j, i] = np.dot(features, w) + b
+    plt.contour(u, v, z, levels=[0], linewidths=2, colors='y')
+
+# --------- STEP 11: Train Model ---------
+X_mapped = map_feature(X_train)
+initial_w = np.zeros(X_mapped.shape[1])
+initial_b = 0
+alpha = 0.01
+iterations = 10000
+
+w, b, J_history = gradient_descent(X_mapped, y_train, initial_w, initial_b,
+                                   compute_cost, compute_gradient, alpha, iterations)
+
+# --------- STEP 12: Accuracy and Final Plot ---------
+p = predict(X_mapped, w, b)
+accuracy = np.mean(p == y_train) * 100
+print(f"Training Accuracy: {accuracy:.2f}%")
+
+plt.figure(figsize=(6, 6))
+plot_data(X_train, y_train)
+plot_decision_boundary_poly(w, b)
+plt.title("Decision Boundary: Medical Diagnosis System")
+plt.xlabel("Symptom Feature 1")
+plt.ylabel("Symptom Feature 2")
+plt.legend()
+plt.grid(True)
+plt.show()
